@@ -19,8 +19,21 @@ internal class MainWindow : principia.ksp_plugin_adapter.SupervisedWindowRendere
       UnityEngine.GUILayout.Label("Please wait for the Σκοπός Telecom network to initialize...");
       return;
     }
+    if (string.IsNullOrEmpty(s_alert_rate_limit_)) {
+      s_alert_rate_limit_ = telecom_.alert_rate_limit_.ToString();
+    }   // MainWindow initialization is before this field was loaded by the scenario.
+
     using (new UnityEngine.GUILayout.VerticalScope()) {
-      show_network = UnityEngine.GUILayout.Toggle(show_network, "Show network");
+      using (new UnityEngine.GUILayout.HorizontalScope()) {
+        show_network = UnityEngine.GUILayout.Toggle(show_network, "Show network");
+        telecom_.stop_warp_in_sim = UnityEngine.GUILayout.Toggle(telecom_.stop_warp_in_sim, "Alerts stop warp in RP-1 sim");
+      }
+      using (new UnityEngine.GUILayout.HorizontalScope()) {
+        UnityEngine.GUILayout.Label("Suppress duplicate SLA alerts within");
+        s_alert_rate_limit_ = UnityEngine.GUILayout.TextField(s_alert_rate_limit_);
+        double.TryParse(s_alert_rate_limit_, out telecom_.alert_rate_limit_);
+        UnityEngine.GUILayout.Label($"days ({telecom_.alert_rate_limit_})");
+      }
       var inspected_connections = connection_inspectors_.Keys.ToArray();
       foreach (var inspected_connection in inspected_connections) {
         if (!telecom_.network.contracted_connections.Contains(inspected_connection)) {
@@ -114,6 +127,7 @@ internal class MainWindow : principia.ksp_plugin_adapter.SupervisedWindowRendere
     antenna_inspectors_;
 
   private Telecom telecom_;
+  private string s_alert_rate_limit_;
   private readonly Dictionary<Contracts.Contract, bool> open_contracts_ =
       new Dictionary<Contracts.Contract, bool>();
   private readonly Dictionary<Connection, ConnectionInspector> connection_inspectors_ =

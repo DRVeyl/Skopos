@@ -34,6 +34,17 @@ internal class MainWindow : principia.ksp_plugin_adapter.SupervisedWindowRendere
         double.TryParse(s_alert_rate_limit_, out telecom_.alert_rate_limit_);
         UnityEngine.GUILayout.Label($"days ({telecom_.alert_rate_limit_})");
       }
+
+      using (new UnityEngine.GUILayout.VerticalScope()) {
+        UnityEngine.GUILayout.Label($"Number of contracted connections: {telecom_.network.contracted_connections.Count}");
+        UnityEngine.GUILayout.Label($"Total Network FixedUpdate Runs: {telecom_.runtimeMetrics_.num_fixed_update_iterations_}");
+        UnityEngine.GUILayout.Label($"Average Network FixedUpdate Runtime: {telecom_.runtimeMetrics_.AverageFixedUpdateRuntime} ms");
+        UnityEngine.GUILayout.Label($"Average Network Connection Eval Runtime: {telecom_.runtimeMetrics_.AverageUpdateConnectionsRuntime} ms");
+        UnityEngine.GUILayout.Label($"Average Kerbalism EC Consumption Runtime: {telecom_.runtimeMetrics_.AverageKerbalismChargeRuntime} ms");
+        UnityEngine.GUILayout.Label($"Average Number of Kerbalism EC Consumption Calls/Run: {telecom_.runtimeMetrics_.num_antenna_chargeback_iterations_ / telecom_.runtimeMetrics_.num_fixed_update_iterations_}");
+        UnityEngine.GUILayout.Label($"Average Single Kerbalism EC Consumption Runtime: {telecom_.runtimeMetrics_.AverageSingleKerbalismChargeRuntime} ms");
+      }
+
       var inspected_connections = connection_inspectors_.Keys.ToArray();
       foreach (var inspected_connection in inspected_connections) {
         if (!telecom_.network.contracted_connections.Contains(inspected_connection)) {

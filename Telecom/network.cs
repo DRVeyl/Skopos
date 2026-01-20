@@ -158,20 +158,35 @@ namespace σκοπός {
       }
     }
 
+    private System.Diagnostics.Stopwatch refresh_watch = new System.Diagnostics.Stopwatch();
+    private System.Diagnostics.Stopwatch update_connections_watch = new System.Diagnostics.Stopwatch();
+    private System.Diagnostics.Stopwatch consume_Kerbalism_watch = new System.Diagnostics.Stopwatch();
     public void Refresh() {
-
+      var metrics = Telecom.Instance.runtimeMetrics_;
+      refresh_watch.Start();
+      update_connections_watch.Start();
       UpdateConnections();
+      update_connections_watch.Stop();
+      consume_Kerbalism_watch.Start();
+      int kerbalism_calls = 0;
       foreach (RealAntennaDigital antenna in routing_.usage.Transmitters()) {
         if ((antenna?.ParentNode as RACommNode).ParentVessel is Vessel vessel) {
           Kerbalism.ConsumeResource(
               vessel,
               "ElectricCharge",
               // PowerDrawLinear is in mW, ElectricCharge is in kJ.
-              routing_.usage.TxPowerUsage(antenna) * antenna.PowerDrawLinear *
-              1e-6 * TimeWarp.fixedDeltaTime,
+              routing_.usage.TxPowerUsage(antenna) * antenna.PowerDrawLinear * 1e-6 * TimeWarp.fixedDeltaTime,
               "Σκοπός telecom");
+          kerbalism_calls++;
         }
       }
+      consume_Kerbalism_watch.Stop();
+      refresh_watch.Stop();
+      metrics.num_fixed_update_iterations_++;
+      metrics.antenna_chargeback_runtime_ = consume_Kerbalism_watch.Elapsed.TotalMilliseconds;
+      metrics.update_connections_runtime_ = update_connections_watch.Elapsed.TotalMilliseconds;
+      metrics.fixed_update_runtime_ = refresh_watch.Elapsed.TotalMilliseconds;
+      metrics.num_antenna_chargeback_iterations_ += kerbalism_calls;
     }
 
     private void UpdateConnections() {

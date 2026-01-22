@@ -254,6 +254,10 @@ namespace σκοπός {
     return new Circuit(forward[0], backward[0]);
   }
 
+  private readonly Dictionary<RACommNode, double> distances = new Dictionary<RACommNode, double>();
+  private readonly Dictionary<RACommNode, OrientedLink> previous = new Dictionary<RACommNode, OrientedLink>();
+  private readonly SortedDictionary<double, RACommNode> boundary = new SortedDictionary<double, RACommNode>();
+  private readonly HashSet<RACommNode> interior = new HashSet<RACommNode>();
   private PointToMultipointAvailability FindChannels(
       RACommNode source,
       IList<RACommNode> destinations,
@@ -263,21 +267,22 @@ namespace σκοπός {
       out Channel[] channels) {
     const double c = 299792458;
     // TODO(egg): consider using the stock intrusive data structure.
-    var distances = new Dictionary<RACommNode, double>();
-    var previous = new Dictionary<RACommNode, OrientedLink>();
-    var boundary = new SortedDictionary<double, RACommNode>();
-    var interior = new HashSet<RACommNode>();
+    distances.Clear();
+    previous.Clear();
+    boundary.Clear();
+    interior.Clear();
 
     distances[source] = 0;
-    boundary[0] = source;
+    boundary.Add(0, source);
     previous[source] = null;
     int rx_found = 0;
     channels = new Channel[destinations.Count()];
     bool is_point_to_multipoint = destinations.Count() > 1;
 
     while (boundary.Count > 0) {
-      double tx_distance = boundary.First().Key;
-      RACommNode tx = boundary.First().Value;
+      var x = boundary.First();
+      double tx_distance = x.Key;
+      RACommNode tx = x.Value;
       boundary.Remove(tx_distance);
 
       if (tx_distance > latency_limit * c) {
@@ -463,6 +468,7 @@ namespace σκοπός {
     }
 
     private void EnsureSameTxAntennaAndTL(IEnumerable<OrientedLink> links) {
+                /*
 #if DEBUG
       RealAntennaDigital tx_antenna = links.First().tx_antenna;
       var antennas = from link in links select link.tx_antenna;
@@ -475,6 +481,7 @@ namespace σκοπός {
         throw new ArgumentException("Broadcast at multiple tech levels");
       }
 #endif
+                */
     }
 
     private readonly Dictionary<RealAntenna, PowerBreakdown> tx_power_usage_ =

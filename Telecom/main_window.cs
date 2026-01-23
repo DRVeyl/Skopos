@@ -38,12 +38,12 @@ internal class MainWindow : principia.ksp_plugin_adapter.SupervisedWindowRendere
       using (new UnityEngine.GUILayout.VerticalScope()) {
         UnityEngine.GUILayout.Label($"Number of contracted connections: {telecom_.network.contracted_connections.Count}");
         UnityEngine.GUILayout.Label($"Total Network FixedUpdate Runs: {telecom_.runtimeMetrics_.num_fixed_update_iterations_}");
-        UnityEngine.GUILayout.Label($"Average Network FixedUpdate Runtime: {telecom_.runtimeMetrics_.AverageFixedUpdateRuntime} ms");
-        UnityEngine.GUILayout.Label($"Average Network Connection Eval Runtime: {telecom_.runtimeMetrics_.AverageUpdateConnectionsRuntime} ms");
-        UnityEngine.GUILayout.Label($"Average FindChannels calls / FixUpdate: {telecom_.runtimeMetrics_.AverageFindChannelsCallsPerFrame}");
-        UnityEngine.GUILayout.Label($"Average FindChannels Top-half Runtime: {telecom_.runtimeMetrics_.AverageFindChannels1Runtime} ms");
-        UnityEngine.GUILayout.Label($"Average FindChannels Bottom-half Runtime: {telecom_.runtimeMetrics_.AverageFindChannels2Runtime} ms");
-        UnityEngine.GUILayout.Label($"Average Kerbalism EC Consumption Runtime: {telecom_.runtimeMetrics_.AverageKerbalismChargeRuntime} ms");
+        UnityEngine.GUILayout.Label($"Average Network FixedUpdate Runtime: {telecom_.runtimeMetrics_.AverageFixedUpdateRuntime:F3} ms");
+        UnityEngine.GUILayout.Label($"Average Network Connection Eval Runtime: {telecom_.runtimeMetrics_.AverageUpdateConnectionsRuntime:F3} ms");
+        UnityEngine.GUILayout.Label($"Average FindChannels Calls/Frame: {(float)Routing.metrics.num_find_channels_iterations_ / telecom_.runtimeMetrics_.num_fixed_update_iterations_}:F1");
+        UnityEngine.GUILayout.Label($"Average FindChannels Top-half Runtime: {Routing.metrics.AverageFindChannels1Runtime:F3} ms");
+        UnityEngine.GUILayout.Label($"Average FindChannels Bottom-half Runtime: {Routing.metrics.AverageFindChannels2Runtime:F3} ms");
+        UnityEngine.GUILayout.Label($"Average Kerbalism EC Consumption Runtime: {telecom_.runtimeMetrics_.AverageKerbalismChargeRuntime:F3} ms");
       }
 
       var inspected_connections = connection_inspectors_.Keys.ToArray();

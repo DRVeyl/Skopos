@@ -208,6 +208,7 @@ namespace σκοπός {
 
     public static Telecom Instance { get; private set; }
 
+    internal RuntimeMetrics runtimeMetrics_ = new RuntimeMetrics();
     public Network network { get; private set; }
     private ConfigNode serialized_network_;
     [KSPField(isPersistant = true)]
@@ -220,7 +221,5 @@ namespace σκοπός {
     [KSPField(isPersistant = true)]
     public bool stop_warp_in_sim = true;
     private KSP.UI.Screens.ApplicationLauncherButton toolbar_button_;
-
-    internal RuntimeMetrics runtimeMetrics_ = new RuntimeMetrics();
   }
 }

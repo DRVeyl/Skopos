@@ -8,7 +8,7 @@ namespace σκοπός {
 
   public class Routing {
 
-  public enum PointToMultipointAvailability {
+    public enum PointToMultipointAvailability {
     Unavailable,
     Partial,
     Available,
@@ -258,11 +258,11 @@ namespace σκοπός {
   private readonly Dictionary<RACommNode, OrientedLink> previous = new Dictionary<RACommNode, OrientedLink>();
   private readonly SortedDictionary<double, RACommNode> boundary = new SortedDictionary<double, RACommNode>();
   private readonly HashSet<RACommNode> interior = new HashSet<RACommNode>();
-  private System.Diagnostics.Stopwatch findChannelsWatch1 = new System.Diagnostics.Stopwatch();
-  private System.Diagnostics.Stopwatch findChannelsWatch2 = new System.Diagnostics.Stopwatch();
-  internal static RuntimeMetrics metrics = new RuntimeMetrics();
+  public System.Diagnostics.Stopwatch findChannelsWatch1 = new System.Diagnostics.Stopwatch();
+  public System.Diagnostics.Stopwatch findChannelsWatch2 = new System.Diagnostics.Stopwatch();
+  private static RuntimeMetrics metrics = Telecom.Instance.runtimeMetrics_ ?? new RuntimeMetrics();
 
-  private PointToMultipointAvailability FindChannels(
+    private PointToMultipointAvailability FindChannels(
       RACommNode source,
       IList<RACommNode> destinations,
       double latency_limit,
@@ -275,10 +275,11 @@ namespace σκοπός {
     previous.Clear();
     boundary.Clear();
     interior.Clear();
-
+    metrics.find_channels_1_runtime_ = findChannelsWatch1.Elapsed.TotalMilliseconds;
+    metrics.find_channels_2_runtime_ = findChannelsWatch2.Elapsed.TotalMilliseconds;
     metrics.num_find_channels_iterations_++;
 
-    distances[source] = 0;
+      distances[source] = 0;
     boundary.Add(0, source);
     previous[source] = null;
     int rx_found = 0;
@@ -286,7 +287,7 @@ namespace σκοπός {
     bool is_point_to_multipoint = destinations.Count() > 1;
 
     while (boundary.Count > 0) {
-      findChannelsWatch1.Start();
+        findChannelsWatch1.Start();
 
       var x = boundary.First();
       double tx_distance = x.Key;
@@ -327,21 +328,18 @@ namespace σκοπός {
         var rx = (RACommNode)stock_rx;
 
         if (tx_only_.Contains(rx) || interior.Contains(rx)) {
-          findChannelsWatch2.Stop();
           continue;
         }
 
         var link = OrientedLink.Get(this, from: tx, to: rx);
 
         if (link.CapacityWithUsage(usage) < data_rate) {
-          findChannelsWatch2.Stop();
           continue;
         }
 
         double tentative_distance = tx_distance + link.length;
         if (distances.TryGetValue(rx, out double d)) {
           if (d <= tentative_distance) {
-            findChannelsWatch2.Stop();
             continue;
           } else {
             boundary.Remove(d);
@@ -592,7 +590,7 @@ namespace σκοπός {
     private readonly Routing routing_;
   }
 
-  private readonly RoutingNetworkUsage current_network_usage_;
+    private readonly RoutingNetworkUsage current_network_usage_;
 
   private readonly Dictionary<(RACommNode, RACommNode), OrientedLink> links_ =
       new Dictionary<(RACommNode, RACommNode), OrientedLink>();

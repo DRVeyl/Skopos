@@ -510,12 +510,12 @@ namespace σκοπός {
   }
 
   public class OrientedLink {
-    private static readonly List<OrientedLink> pool = new List<OrientedLink>(100) { new OrientedLink() };
-    private static OrientedLink GetFromPool() => pool.FirstOrDefault() ?? new OrientedLink();
+    private static readonly Queue<OrientedLink> pool = new Queue<OrientedLink>();
+    private static OrientedLink GetFromPool() => pool.Count > 0 ? pool.Dequeue() : new OrientedLink();
     internal static void ReturnLinks(Routing r) {
       foreach (var link in r.links_.Values) {
         link.Clear();
-        pool.Add(link);
+        pool.Enqueue(link);
       }
     }
     public static OrientedLink Get(

@@ -278,6 +278,9 @@ namespace σκοπός {
     interior.Clear();
 
     metrics.num_find_channels_iterations_++;
+            // This is 1 clock behind but easier than going to all the returns below...
+    metrics.find_channels_1_runtime_ = findChannelsWatch1.Elapsed.TotalMilliseconds;
+    metrics.find_channels_2_runtime_ = findChannelsWatch2.Elapsed.TotalMilliseconds;
 
     distances[source] = 0;
     boundary.Add(0, source);

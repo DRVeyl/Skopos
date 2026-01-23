@@ -186,7 +186,6 @@ namespace σκοπός {
       metrics.antenna_chargeback_runtime_ = consume_Kerbalism_watch.Elapsed.TotalMilliseconds;
       metrics.update_connections_runtime_ = update_connections_watch.Elapsed.TotalMilliseconds;
       metrics.fixed_update_runtime_ = refresh_watch.Elapsed.TotalMilliseconds;
-      metrics.num_antenna_chargeback_iterations_ += kerbalism_calls;
     }
 
     private void UpdateConnections() {

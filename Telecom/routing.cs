@@ -258,6 +258,10 @@ namespace σκοπός {
   private readonly Dictionary<RACommNode, OrientedLink> previous = new Dictionary<RACommNode, OrientedLink>();
   private readonly SortedDictionary<double, RACommNode> boundary = new SortedDictionary<double, RACommNode>();
   private readonly HashSet<RACommNode> interior = new HashSet<RACommNode>();
+  private System.Diagnostics.Stopwatch findChannelsWatch1 = new System.Diagnostics.Stopwatch();
+  private System.Diagnostics.Stopwatch findChannelsWatch2 = new System.Diagnostics.Stopwatch();
+  internal static RuntimeMetrics metrics = new RuntimeMetrics();
+
   private PointToMultipointAvailability FindChannels(
       RACommNode source,
       IList<RACommNode> destinations,
@@ -272,6 +276,8 @@ namespace σκοπός {
     boundary.Clear();
     interior.Clear();
 
+    metrics.num_find_channels_iterations_++;
+
     distances[source] = 0;
     boundary.Add(0, source);
     previous[source] = null;
@@ -280,12 +286,15 @@ namespace σκοπός {
     bool is_point_to_multipoint = destinations.Count() > 1;
 
     while (boundary.Count > 0) {
+      findChannelsWatch1.Start();
+
       var x = boundary.First();
       double tx_distance = x.Key;
       RACommNode tx = x.Value;
       boundary.Remove(tx_distance);
 
       if (tx_distance > latency_limit * c) {
+        findChannelsWatch1.Stop();
         // We have run out of latency, no need to keep searching.
         return rx_found == 0 ? Unavailable : Partial;
       } else if (destinations.Contains(tx)) {
@@ -300,6 +309,7 @@ namespace σκοπός {
         channels[i].latency = tx_distance / c;
         ++rx_found;
         if (rx_found == channels.Length) {
+          findChannelsWatch1.Stop();
           return PointToMultipointAvailability.Available;
         }
       }
@@ -307,25 +317,31 @@ namespace σκοπός {
       interior.Add(tx);
 
       if (rx_only_.Contains(tx)) {
+        findChannelsWatch1.Stop();
         continue;
       }
+      findChannelsWatch1.Stop();
+      findChannelsWatch2.Start();
 
       foreach (var stock_rx in tx.Keys) {
         var rx = (RACommNode)stock_rx;
 
         if (tx_only_.Contains(rx) || interior.Contains(rx)) {
+          findChannelsWatch2.Stop();
           continue;
         }
 
         var link = OrientedLink.Get(this, from: tx, to: rx);
 
         if (link.CapacityWithUsage(usage) < data_rate) {
+          findChannelsWatch2.Stop();
           continue;
         }
 
         double tentative_distance = tx_distance + link.length;
         if (distances.TryGetValue(rx, out double d)) {
           if (d <= tentative_distance) {
+            findChannelsWatch2.Stop();
             continue;
           } else {
             boundary.Remove(d);
@@ -337,6 +353,7 @@ namespace σκοπός {
         boundary.Add(tentative_distance, rx);
         previous[rx] = link;
       }
+      findChannelsWatch2.Stop();
     }
     return rx_found == 0 ? Unavailable : Partial;
   }

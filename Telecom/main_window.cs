@@ -43,6 +43,8 @@ internal class MainWindow : principia.ksp_plugin_adapter.SupervisedWindowRendere
         UnityEngine.GUILayout.Label($"Average FindChannels Calls/Frame: {(float)Routing.metrics.num_find_channels_iterations_ / telecom_.runtimeMetrics_.num_fixed_update_iterations_:F1}");
         UnityEngine.GUILayout.Label($"Average FindChannels Top-half Runtime: {Routing.metrics.AverageFindChannels1Runtime:F3} ms");
         UnityEngine.GUILayout.Label($"Average FindChannels Bottom-half Runtime: {Routing.metrics.AverageFindChannels2Runtime:F3} ms");
+        UnityEngine.GUILayout.Label($"Max size of boundary dictionary: {Routing.metrics.max_boundary_size}");
+        UnityEngine.GUILayout.Label($"Average boundary evaluations: {(float)Routing.metrics.num_boundary_evaluations / Routing.metrics.num_find_channels_iterations_:F1}");
         UnityEngine.GUILayout.Label($"Average Kerbalism EC Consumption Runtime: {telecom_.runtimeMetrics_.AverageKerbalismChargeRuntime:F3} ms");
       }
 

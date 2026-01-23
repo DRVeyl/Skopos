@@ -14,6 +14,8 @@ namespace σκοπός {
         public double antenna_chargeback_runtime_ = 0;
         public double find_channels_1_runtime_ = 0;
         public double find_channels_2_runtime_ = 0;
+        public int max_boundary_size = 0;
+        public int num_boundary_evaluations = 0;
 
         public double AverageFixedUpdateRuntime => fixed_update_runtime_ / (num_fixed_update_iterations_+1);
         public double AverageUpdateConnectionsRuntime => update_connections_runtime_ / (num_fixed_update_iterations_+1);

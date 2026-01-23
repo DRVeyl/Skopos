@@ -260,8 +260,8 @@ namespace σκοπός {
   private readonly PriorityQueue<RACommNode, double> boundary =
     new PriorityQueue<RACommNode, double>();
   private readonly HashSet<RACommNode> interior = new HashSet<RACommNode>();
-  public System.Diagnostics.Stopwatch findChannelsWatch1 = new System.Diagnostics.Stopwatch();
-  public System.Diagnostics.Stopwatch findChannelsWatch2 = new System.Diagnostics.Stopwatch();
+  private System.Diagnostics.Stopwatch findChannelsWatch1 = new System.Diagnostics.Stopwatch();
+  private System.Diagnostics.Stopwatch findChannelsWatch2 = new System.Diagnostics.Stopwatch();
   internal static RuntimeMetrics metrics = new RuntimeMetrics();
 
   private PointToMultipointAvailability FindChannels(
@@ -277,8 +277,6 @@ namespace σκοπός {
     previous.Clear();
     boundary.Clear();
     interior.Clear();
-    metrics.find_channels_1_runtime_ = findChannelsWatch1.Elapsed.TotalMilliseconds;
-    metrics.find_channels_2_runtime_ = findChannelsWatch2.Elapsed.TotalMilliseconds;
     metrics.num_find_channels_iterations_++;
             // This is 1 clock behind but easier than going to all the returns below...
     metrics.find_channels_1_runtime_ = findChannelsWatch1.Elapsed.TotalMilliseconds;
@@ -299,6 +297,7 @@ namespace σκοπός {
 
     while (boundary.Count > 0) {
       findChannelsWatch1.Start();
+      metrics.num_boundary_evaluations++;
 
       boundary.TryDequeue(out RACommNode tx, out double tx_distance);
 
@@ -356,6 +355,7 @@ namespace σκοπός {
         distances[rx] = tentative_distance;
         // NOTE(egg): this will fail if we have equidistant nodes.
         boundary.Enqueue(rx, tentative_distance);
+        metrics.max_boundary_size = Math.Max(metrics.max_boundary_size, boundary.Count);
         previous[rx] = link;
       }
       findChannelsWatch2.Stop();

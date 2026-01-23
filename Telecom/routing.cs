@@ -256,13 +256,13 @@ namespace σκοπός {
 
   private readonly Dictionary<RACommNode, double> distances = new Dictionary<RACommNode, double>();
   private readonly Dictionary<RACommNode, OrientedLink> previous = new Dictionary<RACommNode, OrientedLink>();
-  private readonly SortedDictionary<double, RACommNode> boundary = new SortedDictionary<double, RACommNode>();
+  private readonly MinHeap<double, RACommNode> boundary = new MinHeap<double, RACommNode>();
   private readonly HashSet<RACommNode> interior = new HashSet<RACommNode>();
   public System.Diagnostics.Stopwatch findChannelsWatch1 = new System.Diagnostics.Stopwatch();
   public System.Diagnostics.Stopwatch findChannelsWatch2 = new System.Diagnostics.Stopwatch();
   private static RuntimeMetrics metrics = Telecom.Instance.runtimeMetrics_ ?? new RuntimeMetrics();
 
-    private PointToMultipointAvailability FindChannels(
+  private PointToMultipointAvailability FindChannels(
       RACommNode source,
       IList<RACommNode> destinations,
       double latency_limit,
@@ -279,27 +279,29 @@ namespace σκοπός {
     metrics.find_channels_2_runtime_ = findChannelsWatch2.Elapsed.TotalMilliseconds;
     metrics.num_find_channels_iterations_++;
 
-      distances[source] = 0;
-    boundary.Add(0, source);
+    // pre-compute node->index
+    var destinationIndex = new Dictionary<RACommNode, int>(destinations.Count);
+    for (int i = 0; i < destinations.Count; i++)
+      destinationIndex[destinations[i]] = i;
+
+    distances[source] = 0;
+    double maxDistance = latency_limit * c;
+    boundary.Insert(0, source);
     previous[source] = null;
     int rx_found = 0;
     channels = new Channel[destinations.Count()];
     bool is_point_to_multipoint = destinations.Count() > 1;
 
     while (boundary.Count > 0) {
-        findChannelsWatch1.Start();
+      findChannelsWatch1.Start();
 
-      var x = boundary.First();
-      double tx_distance = x.Key;
-      RACommNode tx = x.Value;
-      boundary.Remove(tx_distance);
+      boundary.ExtractMin(out double tx_distance, out RACommNode tx);
 
-      if (tx_distance > latency_limit * c) {
+      if (tx_distance > maxDistance) {
         findChannelsWatch1.Stop();
         // We have run out of latency, no need to keep searching.
         return rx_found == 0 ? Unavailable : Partial;
-      } else if (destinations.Contains(tx)) {
-        int i = destinations.IndexOf(tx);
+      } else if (destinationIndex.TryGetValue(tx, out int i)) {
         channels[i] = new Channel();
         for (OrientedLink link = previous[tx];
             link != null;
@@ -342,13 +344,13 @@ namespace σκοπός {
           if (d <= tentative_distance) {
             continue;
           } else {
-            boundary.Remove(d);
+            boundary.Remove(rx);
           }
         }
 
         distances[rx] = tentative_distance;
         // NOTE(egg): this will fail if we have equidistant nodes.
-        boundary.Add(tentative_distance, rx);
+        boundary.Insert(tentative_distance, rx);
         previous[rx] = link;
       }
       findChannelsWatch2.Stop();

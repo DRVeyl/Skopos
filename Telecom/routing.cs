@@ -257,7 +257,8 @@ namespace σκοπός {
 
   private readonly Dictionary<RACommNode, double> distances = new Dictionary<RACommNode, double>();
   private readonly Dictionary<RACommNode, OrientedLink> previous = new Dictionary<RACommNode, OrientedLink>();
-  private readonly MinHeap<double, RACommNode> boundary = new MinHeap<double, RACommNode>();
+  private readonly PriorityQueue<RACommNode, double> boundary =
+    new PriorityQueue<RACommNode, double>();
   private readonly HashSet<RACommNode> interior = new HashSet<RACommNode>();
   public System.Diagnostics.Stopwatch findChannelsWatch1 = new System.Diagnostics.Stopwatch();
   public System.Diagnostics.Stopwatch findChannelsWatch2 = new System.Diagnostics.Stopwatch();
@@ -290,7 +291,7 @@ namespace σκοπός {
 
     distances[source] = 0;
     double maxDistance = latency_limit * c;
-    boundary.Insert(0, source);
+    boundary.Enqueue(source, 0);
     previous[source] = null;
     int rx_found = 0;
     channels = new Channel[destinations.Count()];
@@ -299,7 +300,7 @@ namespace σκοπός {
     while (boundary.Count > 0) {
       findChannelsWatch1.Start();
 
-      boundary.ExtractMin(out double tx_distance, out RACommNode tx);
+      boundary.TryDequeue(out RACommNode tx, out double tx_distance);
 
       if (tx_distance > maxDistance) {
         findChannelsWatch1.Stop();
@@ -354,7 +355,7 @@ namespace σκοπός {
 
         distances[rx] = tentative_distance;
         // NOTE(egg): this will fail if we have equidistant nodes.
-        boundary.Insert(tentative_distance, rx);
+        boundary.Enqueue(rx, tentative_distance);
         previous[rx] = link;
       }
       findChannelsWatch2.Stop();

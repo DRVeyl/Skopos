@@ -328,21 +328,18 @@ namespace σκοπός {
         var rx = (RACommNode)stock_rx;
 
         if (tx_only_.Contains(rx) || interior.Contains(rx)) {
-          findChannelsWatch2.Stop();
           continue;
         }
 
         var link = OrientedLink.Get(this, from: tx, to: rx);
 
         if (link.CapacityWithUsage(usage) < data_rate) {
-          findChannelsWatch2.Stop();
           continue;
         }
 
         double tentative_distance = tx_distance + link.length;
         if (distances.TryGetValue(rx, out double d)) {
           if (d <= tentative_distance) {
-            findChannelsWatch2.Stop();
             continue;
           } else {
             boundary.Remove(d);
@@ -510,13 +507,13 @@ namespace σκοπός {
   }
 
   public class OrientedLink {
-    private static List<OrientedLink> pool = new List<OrientedLink>(100);
-    public static OrientedLink GetFromPool() => pool.FirstOrDefault() ?? new OrientedLink();
-    public static void ReturnLinks(Routing r) {
+    private static readonly List<OrientedLink> pool = new List<OrientedLink>(100) { new OrientedLink() };
+    private static OrientedLink GetFromPool() => pool.FirstOrDefault() ?? new OrientedLink();
+    internal static void ReturnLinks(Routing r) {
       foreach (var link in r.links_.Values) {
         link.Clear();
+        pool.Add(link);
       }
-      pool.AddRange(r.links_.Values);
     }
     public static OrientedLink Get(
         Routing routing,

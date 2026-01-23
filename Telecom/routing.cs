@@ -291,6 +291,7 @@ namespace σκοπός {
 
     while (boundary.Count > 0) {
       findChannelsWatch1.Start();
+      metrics.num_boundary_evaluations++;
 
       var x = boundary.First();
       double tx_distance = x.Key;
@@ -352,6 +353,7 @@ namespace σκοπός {
         distances[rx] = tentative_distance;
         // NOTE(egg): this will fail if we have equidistant nodes.
         boundary.Add(tentative_distance, rx);
+        metrics.max_boundary_size = Math.Max(metrics.max_boundary_size, boundary.Count);
         previous[rx] = link;
       }
       findChannelsWatch2.Stop();

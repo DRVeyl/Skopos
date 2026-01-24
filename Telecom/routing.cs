@@ -355,7 +355,7 @@ namespace σκοπός {
         distances[rx] = tentative_distance;
         // NOTE(egg): this will fail if we have equidistant nodes.
         boundary.Enqueue(rx, tentative_distance);
-        metrics.max_boundary_size = Math.Max(metrics.max_boundary_size, boundary.Count);
+        metrics.max_boundary_size = metrics.max_boundary_size > boundary.Count ? metrics.max_boundary_size : boundary.Count;
         previous[rx] = link;
       }
       findChannelsWatch2.Stop();
@@ -526,12 +526,13 @@ namespace σκοπός {
         Routing routing,
         RACommNode from,
         RACommNode to) {
-      if (!routing.links_.TryGetValue((from, to), out OrientedLink link)) {
+      var key = new LinkKey(from, to); // reduce 2x tuple constructs to 1x
+      if (!routing.links_.TryGetValue(key, out OrientedLink link)) {
         var ra_link = (RACommLink)from[to];
         bool forward = ra_link.a == from;
         link = GetFromPool();
         link.Set(from, to, ra_link, forward, routing);
-        routing.links_.Add((from, to), link);
+        routing.links_.Add(key, link);
       }
       return link;
     }
@@ -545,38 +546,32 @@ namespace σκοπός {
     public RACommLink ra_link { get; private set; }
     public bool forward { get; private set; }
 
-    public RealAntennaDigital tx_antenna =>
-        (RealAntennaDigital)(forward ? ra_link.FwdAntennaTx
-                                     : ra_link.RevAntennaTx);
-    public RealAntennaDigital rx_antenna =>
-        (RealAntennaDigital)(forward ? ra_link.FwdAntennaRx
-                                     : ra_link.RevAntennaRx);
-    public double max_data_rate => forward ? ra_link.FwdDataRate
-                                           : ra_link.RevDataRate;
-    public int tech_level => Math.Min(tx_antenna.TechLevelInfo.Level,
-                                      rx_antenna.TechLevelInfo.Level);
-    public RealAntennas.Antenna.BandInfo band => tx_antenna.RFBand;
+    public RealAntennaDigital tx_antenna { get; private set; }
+    public RealAntennaDigital rx_antenna { get; private set; }
+    public double max_data_rate { get; private set; }
+    public int tech_level { get; private set; }
+    public RealAntennas.Antenna.BandInfo band { get; private set; }
     // TODO(egg): we only care about encoding and modulation; but while TL 3 and
     // 4 have the same encoder, they differ in modulation (QPSK vs. 8PSK), so it
     // doesn’t matter that much.
-    public bool is_at_tx_tech_level =>
-        tech_level == tx_antenna.TechLevelInfo.Level;
-    public RealAntennaDigital lowest_tech_antenna =>
-        is_at_tx_tech_level ? tx_antenna : rx_antenna;
-    public RAModulator modulator => lowest_tech_antenna.modulator;
-    public RealAntennas.Antenna.Encoder encoder => lowest_tech_antenna.Encoder;
+    public bool is_at_tx_tech_level { get; private set; }
+    public RealAntennaDigital lowest_tech_antenna { get; private set; }
+    public RAModulator modulator { get; private set; }
+    public RealAntennas.Antenna.Encoder encoder { get; private set; }
     // TODO(egg): this needs to be adapted once we have support for landlines.
-    public double length => (tx.precisePosition - rx.precisePosition).magnitude;
+    public double length => (tx.precisePosition - rx.precisePosition).magnitude; 
+    private double bits_per_symbol_;
+    private double max_symbol_rate_;
+    private double channel_width_;
 
     public double CapacityWithUsage(NetworkUsage usage) {
       double tx_usage = usage.SpectrumUsage(tx_antenna);
       double rx_usage = usage.SpectrumUsage(rx_antenna);
       double used = tx_usage > rx_usage ? tx_usage : rx_usage;
-      double available_spectrum = band.ChannelWidth - used;
-      double limiting_spectrum = available_spectrum < max_symbol_rate_ 
-                                 ? available_spectrum
-                                 : max_symbol_rate_;
-      double bandwidth_limited_data_rate = limiting_spectrum * bits_per_symbol_;
+      double available_spectrum = channel_width_ - used;
+      double bandwidth_limited_data_rate = available_spectrum < max_symbol_rate_ 
+                                           ? available_spectrum * bits_per_symbol_
+                                           : max_data_rate;
       double tx_power_used = usage.TxPowerUsage(tx_antenna);
       double power_limited_data_rate = max_data_rate * (1.0 - tx_power_used);
       double final_limited_rate = bandwidth_limited_data_rate < power_limited_data_rate 
@@ -611,22 +606,66 @@ namespace σκοπός {
 
       routing_ = routing;
       // pre-computed; they don't change during each-frame, do they?
-      if (ra_link != null) {
-        bits_per_symbol_ = encoder.CodingRate * modulator.ModulationBits;
-        max_symbol_rate_ = max_data_rate / bits_per_symbol_;
-        }
+      if (ra_link == null)
+        return;
+
+      // Antennas
+      tx_antenna = (RealAntennaDigital)(
+          forward ? ra_link.FwdAntennaTx : ra_link.RevAntennaTx);
+
+      rx_antenna = (RealAntennaDigital)(
+          forward ? ra_link.FwdAntennaRx : ra_link.RevAntennaRx);
+
+      // Tech level resolution
+      if (tx_antenna.TechLevelInfo.Level < rx_antenna.TechLevelInfo.Level) {
+          tech_level = tx_antenna.TechLevelInfo.Level;
+          is_at_tx_tech_level = true;
+          lowest_tech_antenna = tx_antenna;
+      } else {
+          tech_level = rx_antenna.TechLevelInfo.Level;
+          is_at_tx_tech_level = false;
+          lowest_tech_antenna = tx_antenna;
       }
 
-    private double bits_per_symbol_;
-    private double max_symbol_rate_;
+      // Signal chain
+      modulator = lowest_tech_antenna.modulator;
+      encoder = lowest_tech_antenna.Encoder;
+      band = tx_antenna.RFBand;
+
+      // Rates
+      bits_per_symbol_ =
+          encoder.CodingRate * modulator.ModulationBits;
+
+      max_data_rate =
+          forward ? ra_link.FwdDataRate : ra_link.RevDataRate;
+
+      max_symbol_rate_ =
+          max_data_rate / bits_per_symbol_;
+
+      channel_width_ = band.ChannelWidth;
+    }
 
     private Routing routing_;
   }
 
-    private readonly RoutingNetworkUsage current_network_usage_;
+  private readonly RoutingNetworkUsage current_network_usage_;
 
-  private readonly Dictionary<(RACommNode, RACommNode), OrientedLink> links_ =
-      new Dictionary<(RACommNode, RACommNode), OrientedLink>();
+  readonly struct LinkKey : IEquatable<LinkKey> {
+    public readonly RACommNode From;
+    public readonly RACommNode To;
+    private readonly int hash;
+
+    public LinkKey(RACommNode from, RACommNode to) {
+      From = from;
+      To = to;
+      hash = (from.GetHashCode() * 397) ^ to.GetHashCode();
+    }
+
+    public bool Equals(LinkKey other) => From == other.From && To == other.To;
+    public override int GetHashCode() => hash;
+  }
+
+  private readonly Dictionary<LinkKey, OrientedLink> links_ = new Dictionary<LinkKey, OrientedLink>();
 
   // Stations only capable of transmitting.
   private HashSet<RACommNode> tx_only_ = new HashSet<RACommNode>();

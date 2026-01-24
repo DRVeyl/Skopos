@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using RealAntennas;
+using UnityEngine.Profiling;
 using static σκοπός.Routing.PointToMultipointAvailability;
 
 namespace σκοπός {
@@ -292,14 +293,18 @@ namespace σκοπός {
     boundary.Enqueue(source, 0);
     previous[source] = null;
     int rx_found = 0;
-    channels = new Channel[destinations.Count()];
-    bool is_point_to_multipoint = destinations.Count() > 1;
+    channels = new Channel[destinations.Count];
+    bool is_point_to_multipoint = destinations.Count > 1;
 
     while (boundary.Count > 0) {
       findChannelsWatch1.Start();
       metrics.num_boundary_evaluations++;
 
       boundary.TryDequeue(out RACommNode tx, out double tx_distance);
+      // Skip outdated queue entries
+      if (distances.TryGetValue(tx, out double best) && tx_distance != best) {
+        continue;
+      }
 
       if (tx_distance > maxDistance) {
         findChannelsWatch1.Stop();
@@ -339,22 +344,21 @@ namespace σκοπός {
 
         var link = OrientedLink.Get(this, from: tx, to: rx);
 
-        if (link.CapacityWithUsage(usage) < data_rate) {
+        if (link.max_data_rate < data_rate || link.CapacityWithUsage(usage) < data_rate) {
           continue;
         }
 
         double tentative_distance = tx_distance + link.length;
         if (distances.TryGetValue(rx, out double d)) {
-          if (d <= tentative_distance) {
+          if (d <= tentative_distance) { 
             continue;
-          } else {
-            boundary.Remove(rx);
           }
+          distances[rx] = tentative_distance;
+          boundary.DecreasePriority(rx, tentative_distance);
+        } else {
+          distances[rx] = tentative_distance;
+          boundary.Enqueue(rx, tentative_distance);
         }
-
-        distances[rx] = tentative_distance;
-        // NOTE(egg): this will fail if we have equidistant nodes.
-        boundary.Enqueue(rx, tentative_distance);
         metrics.max_boundary_size = metrics.max_boundary_size > boundary.Count ? metrics.max_boundary_size : boundary.Count;
         previous[rx] = link;
       }

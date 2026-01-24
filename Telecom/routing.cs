@@ -569,14 +569,20 @@ namespace σκοπός {
     public double length => (tx.precisePosition - rx.precisePosition).magnitude;
 
     public double CapacityWithUsage(NetworkUsage usage) {
-      double available_spectrum =
-          band.ChannelWidth - Math.Max(usage.SpectrumUsage(tx_antenna),
-                                       usage.SpectrumUsage(rx_antenna));
-      double bandwidth_limited_data_rate =
-          Math.Min(max_symbol_rate, available_spectrum) * bits_per_symbol;
-      double power_limited_data_rate =
-          max_data_rate * (1 - usage.TxPowerUsage(tx_antenna));
-      return Math.Min(bandwidth_limited_data_rate, power_limited_data_rate);
+      double tx_usage = usage.SpectrumUsage(tx_antenna);
+      double rx_usage = usage.SpectrumUsage(rx_antenna);
+      double used = tx_usage > rx_usage ? tx_usage : rx_usage;
+      double available_spectrum = band.ChannelWidth - used;
+      double limiting_spectrum = available_spectrum < max_symbol_rate_ 
+                                 ? available_spectrum
+                                 : max_symbol_rate_;
+      double bandwidth_limited_data_rate = limiting_spectrum * bits_per_symbol_;
+      double tx_power_used = usage.TxPowerUsage(tx_antenna);
+      double power_limited_data_rate = max_data_rate * (1.0 - tx_power_used);
+      double final_limited_rate = bandwidth_limited_data_rate < power_limited_data_rate 
+                                  ? bandwidth_limited_data_rate 
+                                  : power_limited_data_rate;
+      return final_limited_rate;
     }
 
     public double TxPowerUsageFromDataRate(double data_rate) {
@@ -602,12 +608,17 @@ namespace σκοπός {
       this.rx = rx;
       this.ra_link = ra_link;
       this.forward = forward;
-      routing_ = routing;
-    }
 
-    private double max_symbol_rate => max_data_rate / bits_per_symbol;
-    private double bits_per_symbol =>
-        encoder.CodingRate * modulator.ModulationBits;
+      routing_ = routing;
+      // pre-computed; they don't change during each-frame, do they?
+      if (ra_link != null) {
+        bits_per_symbol_ = encoder.CodingRate * modulator.ModulationBits;
+        max_symbol_rate_ = max_data_rate / bits_per_symbol_;
+        }
+      }
+
+    private double bits_per_symbol_;
+    private double max_symbol_rate_;
 
     private Routing routing_;
   }
